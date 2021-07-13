@@ -1,290 +1,60 @@
-/*
-更新时间: 2020-12-13 22:30
-
-本脚本仅适用于快手双版本签到，注意正式版Cookie签到有时效性，但Cookie仍然可用于签到极速版，即正式版会掉签；极速版Cookie只能用于极速版
-正式版APP获取Cookie方法:
-  1.将下方[rewrite_local]地址复制的相应的区域下,无需填写hostname;
-  2.打开APP稍等几秒，即可获取Cookie.
-极速版获取方法，
-  1.把URL的正则改为 https:\/\/nebula\.kuaishou\.com\/nebula\/task\/earning\?，添加hostname = nebula.kuaishou.com;
-  2.点击设置页面的"积分兑好礼"即可
-
-兼容Nodejs,把获取的Cookie填入KS_TOKEN，多账号用"&"分开
-
-非专业人士制作，欢迎各位大佬提出宝贵意见和指导
-by Sunert
-特别感谢
-@Chavy
-@Nobyda
-~~~~~~~~~~~~~~~~
-
-Surge 4.0 :
-[Script]
-快手 = type=cron,cronexp=35 5 0 * * *,script-path=https://raw.githubusercontent.com/Sunert/Scripts/master/Task/kuaishou.js,script-update-interval=0
-
-快手 = type=http-request,pattern=http:\/\/uploads2\.gifshow\.com\/rest\/n\/system\/speed,script-path=https://raw.githubusercontent.com/Sunert/Scripts/master/Task/kuaishou.js
-
-~~~~~~~~~~~~~~~~
-Loon 2.1.0+
-[Script]
-# 本地脚本
-cron "04 00 * * *" script-path=https://raw.githubusercontent.com/Sunert/Scripts/master/Task/kuaishou.js, enabled=true, tag=快手
-
-http-request http:\/\/uploads2\.gifshow\.com\/rest\/n\/system\/speed script-path=https://raw.githubusercontent.com/Sunert/Scripts/master/Task/kuaishou.js
-
------------------
-
-QX 1.0.7+ :
-[task_local]
-0 9 * * * kuaishou.js
-
-[rewrite_local]
-
-http:\/\/uploads2\.gifshow\.com\/rest\/n\/system\/speed url script-request-header https://raw.githubusercontent.com/Sunert/Scripts/master/Task/kuaishou.js
-
-~~~~~~~~~~~~~~~~
-
-*/
-const logs = false; //日志开关
-const $ = new Env("快手视频");
-let cookieArr = [];
-let ks_tokens = [];
-let speed_code = -1;
-const cashType = $.getdata("tpcash_nebula") || "ALIPAY";
-if ($.isNode()) {
-  if (process.env.KS_TOKEN && process.env.KS_TOKEN.indexOf("&") > -1) {
-    ks_tokens = process.env.KS_TOKEN.split("&");
-  } else {
-    ks_tokens = process.env.KS_TOKEN.split();
-  }
-} else {
-  ks_tokens = $.getdata("cookie_ks") || {};
-}
-
-ks_tokens = JSON.parse(ks_tokens)
-
-Object.keys(ks_tokens).forEach((item) => {
-  if (ks_tokens[item]) {
-    cookieArr.push(ks_tokens[item]);
-  }
-});
+const $ = new Env("快手极速版-cookie");
 
 !(async () => {
-  if (!cookieArr[0]) {
-    $.msg($.name, "【提示】🉐登录快手pp获取cookie", "", {
-      "open-url":
-        "https://live.kuaishou.com/fission/offkwai/index?cc=share_copylink&kpf=IPHONE&traceId=27&fid=1570609569&code=3429390431&shareMethod=token&kpn=KUAISHOU&subBiz=INVITE_CODE&shareId=1000517297081&shareToken=X-1oTjAy1OkMhgQk_AO&platform=copylink&shareMode=app&shareObjectId=3429390431",
-    });
-    return;
-  }
-  if ($.isNode()) {
-    console.log(
-      `============ 脚本执行-国际标准时间(UTC)：${new Date().toLocaleString()}  =============\n`
-    );
-    console.log(
-      `============ 脚本执行-北京时间(UTC+8)：${new Date(
-        new Date().getTime() + 8 * 60 * 60 * 1000
-      ).toLocaleString()}=============\n`
-    );
-  }
-
-  for (let i = 0; i < cookieArr.length; i++) {
-    if (cookieArr[i]) {
-      let cookieVal = cookieArr[i];
-      $.index = i + 1;
-      console.log(
-        `-------------------------\n\n开始【快手视频账号${$.index}】`
-      );
-      
-      await boxExplore(cookieVal, i);
-      await speedSign(cookieVal);
-      await speedSignifo(cookieVal);
-      await speedInfo(cookieVal);
-      await nebulaWithdraw(cookieVal);
-      await showmsg();
-      
-    }
+  if (typeof $request !== "undefined") {
+    await GetCookie();
   }
 })()
-  .catch((e) => $.logErr(e))
-  .finally(() => $.done());
+  .catch((e) => {
+    $.log("", `❌ ${$.name}, 失败! 原因: ${e}!`, "");
+  })
+  .finally(() => {
+    $.done();
+  });
 
-function speedSign(cookieVal) {
-  return new Promise((resolve, reject) => {
-    let signurl = {
-      url: "https://nebula.kuaishou.com/rest/n/nebula/sign/sign",
-      headers: { 
-        Host: "nebula.kuaishou.com",
-        "User-Agent":
-        "Mozilla/5.0 (iPhone; CPU iPhone OS 13_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.1.2 Mobile/15E148 Safari/604.1",
-        "Content-Type": "application/json;charset=utf-8",
-        Cookie: cookieVal 
-      },
-    };
-    $.get(signurl, (error, response, data) => {
-      if (logs) $.log(`${$.name}, data: ${data}`);
-      let speed_res = JSON.parse(data);
-      speed_code = speed_res.result;
-      if (speed_code == 10007) {
-        speed_sign = `签到结果: ${speed_res.error_msg}`;
-        $.msg($.name, '签到结果', `${speed_res.error_msg}`);
-        if (logs) $.log(`错误信息: ${speed_res.error_msg}`);
-        return;
-      } else if (speed_code == 10901) {
-        speed_sign = `签到结果: ${speed_res.error_msg}`;
-      } else if (speed_code == 1) {
-        speed_sign = `签到结果: ${speed_res.data.toast}`;
-      }
-      resolve();
-    });
-  });
-}
-function speedSignifo(cookieVal) {
-  return new Promise((resolve, reject) => {
-    earnurl = {
-      url: "https://nebula.kuaishou.com/rest/n/nebula/sign/query",
-      headers: {
-        Host: "nebula.kuaishou.com",
-        Cookie: cookieVal,
-        "User-Agent":
-        "Mozilla/5.0 (iPhone; CPU iPhone OS 13_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.1.2 Mobile/15E148 Safari/604.1",
-        "Content-Type": "application/json;charset=utf-8",
-      },
-    };
-    $.get(earnurl, (error, response, data) => {
-      if (logs) $.log(`${$.name}, data: ${data}`);
-      let result = JSON.parse(data);
-      if (result.result == "1") {
-        speed_info = `${result.data.nebulaSignInPopup.subTitle}, ${result.data.nebulaSignInPopup.title}\n`;
-      }
-      resolve();
-    });
-  });
-}
-function speedInfo(cookieVal) {
-  return new Promise((resolve, reject) => {
-    let reurl = {
-      url: "https://nebula.kuaishou.com/rest/n/nebula/activity/earn/overview",
-      headers: {
-        Host: "nebula.kuaishou.com",
-        Cookie: cookieVal,
-        "User-Agent":
-        "Mozilla/5.0 (iPhone; CPU iPhone OS 13_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.1.2 Mobile/15E148 Safari/604.1",
-        "Content-Type": "application/json;charset=utf-8",
-      },
-    };
-    $.get(reurl, (error, response, data) => {
-      if (logs) $.log(`${$.name}, data: ${data}`);
-      let result = JSON.parse(data);
-      if (result.result == 1) {
-        speed_rewards = `现金收益: 💵${result.data.allCash}元    金币收益: 💰${result.data.totalCoin}`;
-      }
-      resolve(result.data);
-    });
-  });
-}
-//开宝箱
-function boxExplore(cookieVal, index) {
-  $.log(`快手开宝箱`);
-  return new Promise((resolve, reject) => {
-    let reurl = {
-      url:
-        "https://nebula.kuaishou.com/rest/n/nebula/box/explore?isOpen=true&isReadyOfAdPlay=true",
-      headers: {
-        Cookie: cookieVal,
-        Host: "nebula.kuaishou.com",
-        "User-Agent":
-        "Mozilla/5.0 (iPhone; CPU iPhone OS 13_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.1.2 Mobile/15E148 Safari/604.1",
-        "content-type": "application/json",
-        Accept: "*/*",
-        "X-Requested-With": "com.kuaishou.nebula",
-        "Sec-Fetch-Site": "same-origin",
-        "Sec-Fetch-Mode": "cors",
-        "Sec-Fetch-Dest": "empty",
-        Referer:
-          "https://nebula.kuaishou.com/nebula/task/earning?source=timer&layoutType=4&hyId=nebula_earning",
-        "Accept-Language": "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7",
-      },
-    };
-    try {
-      $.get(reurl, (error, response, data) => {
-        if (logs) $.log(`${$.name}, data: ${data}`);
-        let result = JSON.parse(data);
-        if (result.result == 1) {
-          if (result.data.commonAwardPopup) {
-            $.log(`开宝箱获得${result.data.commonAwardPopup.awardAmount}金币`);
-            $.msg(
-              `【快手视频账号${index}】`,
-              "",
-              `开宝箱获得${result.data.commonAwardPopup.awardAmount}金币`
-            );
-          } else {
-            $.log(`开宝箱失败: ${data}`);
-            $.msg(`【快手视频账号${index}】`, "", `开宝箱失败: ${data}`);
-          }
-        } else {
-          $.log(`开宝箱失败: ${data}`);
-        }
-      });
-    } catch (error) {
-      $.log(`开宝箱失败: ${error}`);
-      $.msg(`【快手视频账号${index}】`, "", `开宝箱失败: ${error}`);
-    } finally {
-      resolve();
+async function GetCookie() {
+  var UA = $request.headers["User-Agent"];
+  let cookieVals = $.getdata("cookie_ks") || {};
+  cookieVals = JSON.parse(cookieVals);
+  if ($request && $request.method != `OPTIONS` && UA.indexOf("ksNebula") > -1) {
+    const cookieVal = $request.headers["Cookie"];
+    if (cookieVal) {
+      const cookieJson = cookieToJson(cookieVal);
+      const userId = cookieJson["userId"];
+      cookieVals[userId] = cookieVal;
     }
-  });
-}
-
-function showmsg() {
-  ($.sub = ""), ($.desc = "");
-
-  if (speed_code == 1 || speed_code == 10901) {
-    $.desc +=
-      `【极速版】:\n  ` +
-      speed_rewards +
-      "\n  " +
-      speed_info +
-      "  " +
-      speed_sign;
+    $.log(`${$.name} 获取Cookie: 成功,cookieVal: ${cookieVal}`);
+    $.msg($.name, `获取极速Cookie: 成功🎉`, cookieVal);
+  } else if (
+    $request &&
+    $request.method != `OPTIONS` &&
+    UA.indexOf("ksNebula") == -1
+  ) {
+    const cookie = $request.headers["Cookie"];
+    cookieVal = cookie.match(/token=[a-z0-9-]+/)[0];
+    if (cookieVal) {
+      const cookieJson = cookieToJson(cookieVal);
+      const userId = cookieJson["userId"];
+      cookieVals[userId] = cookieVal;
+    }
+    $.log(`${$.name} 获取Cookie: 成功,cookieVal: ${cookieVal}`);
+    $.msg($.name, `获取正式Cookie: 成功🎉`, cookieVal);
   }
-  $.msg($.name, $.sub, $.desc);
+  $.setdata(cookieVals, "cookie_ks");
 }
 
-
-function nebulaWithdraw(cookieVal) {
-  return new Promise((resolve, reject) => {
-    $.post(
-      nebulaHost(
-        cookieVal,
-        "outside/withdraw/apply",
-        `{"channel":"${cashType}","amount":3}`
-      ),
-      (error, resp, data) => {
-        let result = JSON.parse(data);
-        if (result.result == 1) {
-          speed_rewards += `提现3元成功`;
-        } else {
-          $.log(data);
-        }
-        resolve();
-      }
-    );
-  });
-}
-
-function nebulaHost(cookieVal, api, body) {
-  return {
-    url: "https://nebula.kuaishou.com/rest/n/nebula/" + api,
-    headers: {
-      Host: "nebula.kuaishou.com",
-      Cookie: cookieVal,
-      "Content-Type": "application/json;charset=utf-8",
-      "User-Agent":
-        "Mozilla/5.0 (iPhone; CPU iPhone OS 13_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.1.2 Mobile/15E148 Safari/604.1",
-    },
-    body: body,
-  };
-}
+function cookieToJson(cookie) {
+    if (!cookie) {
+      return {};
+    }
+    let cookieArr = cookie.split(";");
+    let obj = {};
+    cookieArr.forEach((i) => {
+      let arr = i.split("=");
+      obj[arr[0].trim()] = arr[1].trim();
+    });
+    return obj;
+  }
 
 function Env(t, e) {
   class s {
