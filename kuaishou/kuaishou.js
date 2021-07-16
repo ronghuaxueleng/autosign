@@ -97,6 +97,7 @@ Object.keys(ks_tokens).forEach((item) => {
       );
       
       await boxExplore(cookieVal, i);
+      await cashSign(cookieVal);
       await speedSign(cookieVal);
       await speedSignifo(cookieVal);
       await speedInfo(cookieVal);
@@ -108,6 +109,26 @@ Object.keys(ks_tokens).forEach((item) => {
 })()
   .catch((e) => $.logErr(e))
   .finally(() => $.done());
+
+function cashSign(cookieVal) {
+  return new Promise((resolve, reject) => {
+    let signurl = {
+      url: "https://nebula.kuaishou.com/rest/n/nebula/cashSign/signIn",
+      headers: { 
+        Host: "nebula.kuaishou.com",
+        "User-Agent":
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 13_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.1.2 Mobile/15E148 Safari/604.1",
+        "Content-Type": "application/json;charset=utf-8",
+        Cookie: cookieVal 
+      },
+    };
+    $.get(signurl, (error, response, data) => {
+      if (logs) $.log(`${$.name}, data: ${data}`);
+      $.log(`领取结果: ${data}`)
+      resolve();
+    });
+  });
+}
 
 function speedSign(cookieVal) {
   return new Promise((resolve, reject) => {
