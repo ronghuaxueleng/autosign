@@ -102,10 +102,9 @@ Object.keys(ks_tokens).forEach((item) => {
       await speedSignifo(cookieVal);
       await speedInfo(cookieVal);
       await nebulaWithdraw(cookieVal);
-      await showmsg();
-      
     }
   }
+  await showmsg();
 })()
   .catch((e) => $.logErr(e))
   .finally(() => $.done());
