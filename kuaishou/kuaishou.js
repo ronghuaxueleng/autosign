@@ -147,7 +147,7 @@ function speedSign(cookieVal) {
       speed_code = speed_res.result;
       if (speed_code == 10007) {
         speed_sign = `签到结果: ${speed_res.error_msg}`;
-        $.msg($.name, '签到结果', `${speed_res.error_msg}`);
+        // $.msg($.name, '签到结果', `${speed_res.error_msg}`);
         if (logs) $.log(`错误信息: ${speed_res.error_msg}`);
         return;
       } else if (speed_code == 10901) {
@@ -233,11 +233,11 @@ function boxExplore(cookieVal, index) {
         if (result.result == 1) {
           if (result.data.commonAwardPopup) {
             $.log(`开宝箱获得${result.data.commonAwardPopup.awardAmount}金币`);
-            $.msg(
-              `【快手视频账号${index}】`,
-              "",
-              `开宝箱获得${result.data.commonAwardPopup.awardAmount}金币`
-            );
+            // $.msg(
+            //   `【快手视频账号${index}】`,
+            //   "",
+            //   `开宝箱获得${result.data.commonAwardPopup.awardAmount}金币`
+            // );
           } else {
             $.log(`开宝箱失败: ${data}`);
             $.msg(`【快手视频账号${index}】`, "", `开宝箱失败: ${data}`);
@@ -267,7 +267,7 @@ function showmsg() {
       "  " +
       speed_sign;
   }
-  $.msg($.name, $.sub, $.desc);
+  // $.msg($.name, $.sub, $.desc);
 }
 
 
