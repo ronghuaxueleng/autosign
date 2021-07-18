@@ -97,7 +97,7 @@ Object.keys(ks_tokens).forEach((item) => {
       );
       
       await boxExplore(cookieVal, i);
-      await cashSign(cookieVal);
+      // await cashSign(cookieVal);
       await speedSign(cookieVal);
       await speedSignifo(cookieVal);
       await speedInfo(cookieVal);
